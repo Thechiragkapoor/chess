@@ -37,4 +37,4 @@ RUN pip install selenium requests
 COPY . /app
 
 # Start virtual display and run the Python script
-CMD ["bash", "-c", "rm -f /tmp/.X99-lock && Xvfb :99 -ac -screen 0 1280x1024x24 & exec python main.py"]
+CMD ["bash", "-c", "rm -f /tmp/.X99-lock && Xvfb :99 -ac -screen 0 1280x1024x16 & exec python main.py"]
