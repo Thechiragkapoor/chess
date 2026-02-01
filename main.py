@@ -131,7 +131,7 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
         display = os.environ.get("DISPLAY", ":99.0")
         input_args = [
             '-f', 'x11grab',
-            '-framerate', '30',
+            '-framerate', '20',
             '-video_size', '1280x1024',
             '-draw_mouse', '0',
             '-i', display
