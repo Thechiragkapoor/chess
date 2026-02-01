@@ -121,7 +121,7 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
     if system_os == 'windows':
         input_args = [
             '-f', 'gdigrab',
-            '-framerate', '60',
+            '-framerate', '30',
             '-offset_x', '25',
             '-offset_y', '275',
             '-video_size', '1280x720',
