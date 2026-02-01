@@ -202,19 +202,19 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
 
     encoding_args = [
         '-vcodec', 'libx264',
-        '-preset', 'veryfast',
+        '-preset', 'ultrafast',
         '-pix_fmt', 'yuv420p',
-        '-r', '60',
-        '-g', '120',
-        '-b:v', '3000k',
-        '-minrate', '3000k',
-        '-maxrate', '3000k',
-        '-bufsize', '6000k',
+        '-r', '20',
+        '-g', '40',
+        '-b:v', '2000k',
+        '-minrate', '2000k',
+        '-maxrate', '2000k',
+        '-bufsize', '4000k',
         '-x264-params', 'nal-hrd=cbr:force-cfr=1',
         '-acodec', 'aac',
         '-ar', '44100',
-        '-b:a', '160k',
-        '-threads', '4',
+        '-b:a', '128k',
+        '-threads', '2',
         '-shortest'
     ]
 
