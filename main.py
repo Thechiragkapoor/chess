@@ -411,13 +411,17 @@ def main():
             os.environ["DISPLAY"] = ":99"
         
         options.add_argument("--headless=new")
-        profile = tempfile.mkdtemp()
-        options.add_argument(f"--user-data-dir={profile}")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--js-flags=--max-old-space-size=256")
         # Fixed window size for consistent capture in Docker
         options.add_argument("--window-size=1280,1024")
         options.add_argument("--force-device-scale-factor=1")
+        
+        profile = tempfile.mkdtemp()
+        options.add_argument(f"--user-data-dir={profile}")
 
     driver = webdriver.Chrome(options=options)
     wait = WebDriverWait(driver, 20)
