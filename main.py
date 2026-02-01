@@ -409,6 +409,8 @@ def main():
     if platform.system() == "Linux":
         if not os.environ.get("DISPLAY"):
             os.environ["DISPLAY"] = ":99"
+        
+        options.add_argument("--headless=new")
         profile = tempfile.mkdtemp()
         options.add_argument(f"--user-data-dir={profile}")
         options.add_argument("--no-sandbox")
