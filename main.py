@@ -1,4 +1,5 @@
 import logging
+import psutil
 import os
 import subprocess
 import time
@@ -46,6 +47,26 @@ def ensure_browser_alive(driver):
     except WebDriverException:
         logging.error("[FATAL] Browser session lost. Exiting.")
         sys.exit(1)
+
+def log_memory_usage():
+    try:
+        mem = psutil.virtual_memory()
+        process = psutil.Process(os.getpid())
+        py_mem = process.memory_info().rss / (1024 * 1024)
+        
+        # Count all child processes (Chrome, FFmpeg, etc)
+        total_rss = py_mem
+        for child in process.children(recursive=True):
+            try:
+                total_rss += child.memory_info().rss / (1024 * 1024)
+            except:
+                pass
+        
+        logging.info(f"[ANALYTICS] System: {mem.percent}% used | "
+                     f"Total App RSS: {total_rss:.1f}MB / 512MB limit | "
+                     f"Python: {py_mem:.1f}MB")
+    except Exception as e:
+        logging.error(f"[ANALYTICS] Error logging memory: {e}")
 
 # ================= PGN FORMATTING =================
 def format_pgn_to_standard(raw_pgn):
@@ -291,6 +312,9 @@ def play_all_moves(driver, wait, game_info="Unknown Game"):
             btn.click()
             move_count += 1
             logging.info(f"[PLAY] [{game_info}] Playing move {move_count}...")
+            
+            if move_count % 5 == 0:
+                log_memory_usage()
 
             
             time.sleep(move_delay)
@@ -498,6 +522,7 @@ def main():
             game_info = f"{white_name} vs {black_name} ({game_idx+1}/{len(all_pgns)})"
             
             logging.info(f"playing game {game_info}")
+            log_memory_usage()
 
             
             success = load_game_via_pgn(driver, wait, pgn)

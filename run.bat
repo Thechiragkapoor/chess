@@ -10,6 +10,6 @@ docker build -t %IMAGE_NAME% .
 
 :: Run Docker container
 echo Running Docker container...
-docker run --rm -it %IMAGE_NAME%
+docker run --rm --memory=512m %IMAGE_NAME%
 
 pause

@@ -31,7 +31,7 @@ RUN CHROME_MAJOR=$(google-chrome --version | grep -oP '\d+' | head -n1) && \
 ENV DISPLAY=:99
 
 # Install Python dependencies directly
-RUN pip install selenium requests
+RUN pip install selenium requests psutil
 
 # Copy app
 COPY . /app
