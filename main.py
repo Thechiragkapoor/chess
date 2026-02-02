@@ -1,5 +1,8 @@
 import logging
 import psutil
+import threading
+import http.server
+import socketserver
 import os
 import subprocess
 import time
@@ -467,7 +470,46 @@ def load_game_via_pgn(driver, wait, pgn_text):
         return False
 
 # ================= MAIN =================
+def start_health_check():
+    port = int(os.environ.get("PORT", 10000))
+    handler = http.server.SimpleHTTPRequestHandler
+    
+    # Simple silent handler
+    class HealthHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+        def log_message(self, format, *args):
+            return # Disable logging to save console noise
+
+    try:
+        with socketserver.TCPServer(("", port), HealthHandler) as httpd:
+            logging.info(f"[SYSTEM] Health check server started on port {port}")
+            httpd.serve_forever()
+    except Exception as e:
+        logging.error(f"[SYSTEM] Health check server failed: {e}")
+
+def keep_alive(url):
+    logging.info(f"[SYSTEM] Self-polling started for {url}")
+    while True:
+        try:
+            requests.get(url, timeout=10)
+            logging.info(f"[KEEP-ALIVE] Pinged {url}")
+        except Exception as e:
+            logging.error(f"[KEEP-ALIVE] Failed to ping {url}: {e}")
+        time.sleep(300) # 5 minutes
+
 def main():
+    # Start health check in background thread for Render
+    health_thread = threading.Thread(target=start_health_check, daemon=True)
+    health_thread.start()
+
+    # Start self-polling to prevent spindown
+    app_url = "https://chess-ua0j.onrender.com"
+    keep_alive_thread = threading.Thread(target=keep_alive, args=(app_url,), daemon=True)
+    keep_alive_thread.start()
+
     ffmpeg_proc = None
 
     options = webdriver.ChromeOptions()
