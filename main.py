@@ -170,7 +170,9 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
         input_args = [
             '-f', 'x11grab',
             '-framerate', '10',
-            '-video_size', '1280x1024',
+            '-probesize', '32',        # Ultra-low probe size to save initial RAM
+            '-analyzeduration', '0',   # Don't analyze stream to save buffer
+            '-video_size', '800x800',  # Reduced from 1280x1024
             '-draw_mouse', '0',
             '-i', display
         ]
@@ -207,15 +209,15 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
     HEADER_BOX_ALPHA = 0.5            # Transparency of the black box behind the text (0.0 to 1.0)
 
     # === 3. CHESS BOARD SETTINGS ===
-    # --- Browser Cropping (Where the board is on the website) ---
-    BOARD_CROP_X = 0                  # Horizontal start of the board in the browser
-    BOARD_CROP_Y = 160                 # Vertical start of the board in the browser (0 = very top)
-    BOARD_CROP_W = 600                # Width of the board area to capture from the browser
-    BOARD_CROP_H = 600                # Height of the board area to capture from the browser
+    # --- Browser Cropping (Optimized for 800x800 window) ---
+    BOARD_CROP_X = 0                  
+    BOARD_CROP_Y = 100                # Adjusted for 800h
+    BOARD_CROP_W = 600                
+    BOARD_CROP_H = 600                
     
-    # --- Stream Positioning (Where the board goes in the final video) ---
-    BOARD_SCALE_W = 720               # How wide the board should be in the stream (720 = full width)
-    BOARD_POS_Y_SHIFT = -190          # Move board up/down from center (Positive = down, Negative = up)
+    # --- Stream Positioning ---
+    BOARD_SCALE_W = 720               # Upscale to 720p width here
+    BOARD_POS_Y_SHIFT = -190          
 
     # === 4. BOTTOM BANNER SETTINGS ===
     BANNER_SCALE_W = 720              # Width of the Magnus video banner
@@ -237,6 +239,7 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
         fontfile_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
     filter_args = [
+        '-filter_threads', '1',        # Force single filter thread (Saves 50MB+)
         '-filter_complex',
         # Step A: Crop and scale the board
         f"[0:v]crop={BOARD_CROP_W}:{BOARD_CROP_H}:{BOARD_CROP_X}:{BOARD_CROP_Y},"
@@ -469,19 +472,32 @@ def main():
 
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
+    
+    # Aggressive Memory Tweaks
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-browser-side-navigation")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-notifications")
+    options.add_argument("--dns-prefetch-disable")
+    
+    # Disable images to save massive RAM (Chess pieces are SVGs/CSS usually, but board backgrounds are often images)
+    # If pieces disappear, we can re-enable this.
+    prefs = {"profile.managed_default_content_settings.images": 2}
+    options.add_experimental_option("prefs", prefs)
 
     if platform.system() == "Linux":
         if not os.environ.get("DISPLAY"):
             os.environ["DISPLAY"] = ":99"
         
-        # Headfull Mode (No headless) as requested by check first commit
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--window-size=1280,1024")
+        options.add_argument("--window-size=800,800")
         options.add_argument("--force-device-scale-factor=1")
         
-        # Memory optimization
-        options.add_argument("--js-flags=--max-old-space-size=120")
+        # Ultra-strict JS memory limit
+        options.add_argument("--js-flags=--max-old-space-size=128")
         options.add_argument("--memory-pressure-off")
         options.add_argument("--renderer-process-limit=1")
         
@@ -492,7 +508,7 @@ def main():
         options.add_argument(f"user-agent={user_agent}")
 
     driver = webdriver.Chrome(options=options)
-    driver.set_window_size(1280, 1024)
+    driver.set_window_size(800, 800)
 
     
     # Log actual size
