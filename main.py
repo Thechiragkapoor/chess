@@ -131,7 +131,7 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
         display = os.environ.get("DISPLAY", ":99.0")
         input_args = [
             '-f', 'x11grab',
-            '-framerate', '20',
+            '-framerate', '10',
             '-video_size', '1280x1024',
             '-draw_mouse', '0',
             '-i', display
@@ -153,27 +153,45 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
         banner_args = ['-stream_loop', '-1', '-i', bottom_video]
     else:
         logging.warning("[VIDEO] bottom-Magnus.mp4 not found, falling back.")
-        # We need a dummy input if missing to keep mapping consistent, or skip mapping
-        banner_args = ['-f', 'lavfi', '-i', 'color=c=black:s=720x600:d=1']
+        # We need a dummy input if missing to keep mapping consistent
+        banner_args = ['-f', 'lavfi', '-i', 'color=c=black:s=720x400:d=1']
 
-    # === ADJUSTABLE STREAM PARAMETERS ===
-    # Increase CROP_Y to skip the top website header (chesskit menu)
-    CROP_Y = 210  
-    # Decrease CROP_W to cut off the right-side analysis panel
-    CROP_W = 580  
-    # Adjust CROP_H to tightly fit names and the board (remove bottom grey area)
-    CROP_H = 650  
-    # Small CROP_X ensures the evaluation bar on the left is included
-    CROP_X = 20   
-    # Use Y_SHIFT to move the entire content block up or down in the 1280p frame
-    Y_SHIFT = -100 
-    # Magnus banner height
-    BANNER_H = 450
-    # Magnus banner vertical position (increase to move toward bottom)
-    BANNER_Y = 975
 
-    # Pre-calculate the vertical padding formula
-    vertical_pad = f"(1280-ih*min(720/iw\\,1280/ih))/2+{Y_SHIFT}"
+
+    # === 1. GLOBAL SCENE SETTINGS ===
+    OUT_W = 720        # Final stream width (Standard 720p vertical is 720x1280)
+    OUT_H = 1280       # Final stream height
+
+    # === 2. TOP TEXT (HEADER) SETTINGS ===
+    HEADER_TEXT = "GOAT Chess"        # The text displayed at the very top of the stream
+    HEADER_FONT_SIZE = 48             # Size of the header text
+    HEADER_Y = 30                     # Vertical position of the text from the top edge
+    HEADER_BOX_ALPHA = 0.5            # Transparency of the black box behind the text (0.0 to 1.0)
+
+    # === 3. CHESS BOARD SETTINGS ===
+    # --- Browser Cropping (Where the board is on the website) ---
+    BOARD_CROP_X = 0                  # Horizontal start of the board in the browser
+    BOARD_CROP_Y = 160                 # Vertical start of the board in the browser (0 = very top)
+    BOARD_CROP_W = 600                # Width of the board area to capture from the browser
+    BOARD_CROP_H = 600                # Height of the board area to capture from the browser
+    
+    # --- Stream Positioning (Where the board goes in the final video) ---
+    BOARD_SCALE_W = 720               # How wide the board should be in the stream (720 = full width)
+    BOARD_POS_Y_SHIFT = -190          # Move board up/down from center (Positive = down, Negative = up)
+
+    # === 4. BOTTOM BANNER SETTINGS ===
+    BANNER_SCALE_W = 720              # Width of the Magnus video banner
+    BANNER_H = 600                    # Height of the Magnus video banner
+    BANNER_Y = 850                    # Vertical position of the banner (Pixels from the top)
+
+    # === 5. AUDIO SETTINGS ===
+    MUSIC_VOLUME = 0.5                # Background music volume (0.0 = silent, 1.0 = loud)
+
+    # --- LOGIC: Vertical Padding Calculation ---
+    # This formula centers the board in the 1280h frame and applies the BOARD_POS_Y_SHIFT
+    vertical_pad = f"({OUT_H}-ih*min({OUT_W}/iw\\,{OUT_H}/ih))/2+{BOARD_POS_Y_SHIFT}"
+
+
     
     if system_os == 'windows':
         fontfile_path = "C\\:/Windows/Fonts/arialbd.ttf"
@@ -182,23 +200,28 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
 
     filter_args = [
         '-filter_complex',
-        # 1. Crop the board + evaluation bar + names
-        f"[0:v]crop={CROP_W}:{CROP_H}:{CROP_X}:{CROP_Y},"
-        # 2. Scale to fit stream width (720px)
-        f"scale=720:-1[board];"
-        # 3. Create the vertical background and place the header text
-        f"[board]pad=720:1280:(720-iw)/2:{vertical_pad}:black,"
-        f"drawtext=fontfile='{fontfile_path}':text='GOAT Chess':"
-        f"fontcolor=white:fontsize=48:box=1:boxcolor=black@0.5:boxborderw=10:"
-        f"x=(w-text_w)/2:y=30[main];"
-        # 4. Process the bottom banner
-        f"[1:v]scale=720:{BANNER_H}[banner];"
-        # 5. Overlay banner.
+        # Step A: Crop and scale the board
+        f"[0:v]crop={BOARD_CROP_W}:{BOARD_CROP_H}:{BOARD_CROP_X}:{BOARD_CROP_Y},"
+        f"scale={BOARD_SCALE_W}:-1[board];"
+        
+        # Step B: Pad board into stream frame and add Header Text
+        f"[board]pad={OUT_W}:{OUT_H}:(ow-iw)/2:{vertical_pad}:black,"
+        f"drawtext=fontfile='{fontfile_path}':text='{HEADER_TEXT}':"
+        f"fontcolor=white:fontsize={HEADER_FONT_SIZE}:box=1:boxcolor=black@{HEADER_BOX_ALPHA}:boxborderw=10:"
+        f"x=(w-text_w)/2:y={HEADER_Y}[main];"
+        
+        # Step C: Scale the banner and overlay it
+        f"[1:v]scale={BANNER_SCALE_W}:{BANNER_H}[banner];"
         f"[main][banner]overlay=0:{BANNER_Y}[v];"
-        "[2:a]volume=0.2[a]",
+        
+        # Step D: Apply Volume
+        f"[2:a]volume={MUSIC_VOLUME}[a]",
+        
         '-map', '[v]',
         '-map', '[a]'
     ]
+
+
 
     encoding_args = [
         '-vcodec', 'libx264',
@@ -206,15 +229,15 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
         '-pix_fmt', 'yuv420p',
         '-r', '20',
         '-g', '40',
-        '-b:v', '2000k',
-        '-minrate', '2000k',
-        '-maxrate', '2000k',
-        '-bufsize', '4000k',
+        '-b:v', '800k',
+        '-minrate', '800k',
+        '-maxrate', '800k',
+        '-bufsize', '1600k',
         '-x264-params', 'nal-hrd=cbr:force-cfr=1',
         '-acodec', 'aac',
         '-ar', '44100',
-        '-b:a', '128k',
-        '-threads', '2',
+        '-b:a', '32k',
+        '-threads', '1',
         '-shortest'
     ]
 
@@ -410,25 +433,42 @@ def main():
         if not os.environ.get("DISPLAY"):
             os.environ["DISPLAY"] = ":99"
         
-        options.add_argument("--headless=new")
+        # Headfull Mode (No headless) as requested by check first commit
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--js-flags=--max-old-space-size=256")
-        # Fixed window size for consistent capture in Docker
         options.add_argument("--window-size=1280,1024")
         options.add_argument("--force-device-scale-factor=1")
         
+        # Memory optimization
+        options.add_argument("--js-flags=--max-old-space-size=120")
+        options.add_argument("--memory-pressure-off")
+        options.add_argument("--renderer-process-limit=1")
+        
         profile = tempfile.mkdtemp()
         options.add_argument(f"--user-data-dir={profile}")
+        
+        user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        options.add_argument(f"user-agent={user_agent}")
 
     driver = webdriver.Chrome(options=options)
+    driver.set_window_size(1280, 1024)
+
+    
+    # Log actual size
+    size = driver.get_window_size()
+    logging.info(f"[SYSTEM] Browser Window Size: {size['width']}x{size['height']}")
+    
     wait = WebDriverWait(driver, 20)
 
     try:
         logging.info("Navigating to chesskit.org...")
         driver.get("https://chesskit.org/")
+        
+        # Log resolution
+        w = driver.execute_script("return window.innerWidth;")
+        h = driver.execute_script("return window.innerHeight;")
+        logging.info(f"[SYSTEM] Viewport Size: {w}x{h}")
+
         
         # Initial wait
         time.sleep(5) 
@@ -463,6 +503,40 @@ def main():
             success = load_game_via_pgn(driver, wait, pgn)
             
             if success:
+                 # Aggressively Clean and Pin the board to 0,0
+                 try:
+                     driver.execute_script("""
+                        const style = document.createElement('style');
+                        style.textContent = `
+                            header, footer, .adsbox, #header, .MuiAppBar-root, .CookieBanner { display: none !important; }
+                            body { background: black !important; overflow: hidden !important; }
+                            /* Target the board container and force it to top-left */
+                            .cg-board, .chess-board, [class*="board-"], [class*="game-"] {
+                                position: fixed !important;
+                                top: 0 !important;
+                                left: 0 !important;
+                                z-index: 99999 !important;
+                                transform: none !important;
+                            }
+                        `;
+                        document.head.appendChild(style);
+                        // Also try scrolling just in case
+                        window.scrollTo(0,0);
+                     """)
+                     time.sleep(2)
+                 except:
+                     pass
+
+                 # Debug screenshot
+
+
+
+                 try:
+                     driver.save_screenshot(os.path.join(os.getcwd(), "debug_board.png"))
+                     logging.info(f"[DEBUG] Screenshot saved to debug_board.png")
+                 except:
+                     pass
+                     
                  if ffmpeg_proc is None:
                     ffmpeg_proc = start_screen_recording(
                         stream_to_youtube,
