@@ -199,13 +199,13 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
 
 
     # === 1. GLOBAL SCENE SETTINGS ===
-    OUT_W = 720        # Final stream width (Standard 720p vertical is 720x1280)
-    OUT_H = 1280       # Final stream height
+    OUT_W = 480        
+    OUT_H = 854        # 480p Vertical
 
     # === 2. TOP TEXT (HEADER) SETTINGS ===
-    HEADER_TEXT = "GOAT Chess"        # The text displayed at the very top of the stream
-    HEADER_FONT_SIZE = 48             # Size of the header text
-    HEADER_Y = 30                     # Vertical position of the text from the top edge
+    HEADER_TEXT = "GOAT Chess"        
+    HEADER_FONT_SIZE = 32             
+    HEADER_Y = 20                     
     HEADER_BOX_ALPHA = 0.5            # Transparency of the black box behind the text (0.0 to 1.0)
 
     # === 3. CHESS BOARD SETTINGS ===
@@ -216,13 +216,13 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
     BOARD_CROP_H = 600                
     
     # --- Stream Positioning ---
-    BOARD_SCALE_W = 720               # Upscale to 720p width here
-    BOARD_POS_Y_SHIFT = -190          
+    BOARD_SCALE_W = 480               
+    BOARD_POS_Y_SHIFT = -120          
 
     # === 4. BOTTOM BANNER SETTINGS ===
-    BANNER_SCALE_W = 720              # Width of the Magnus video banner
-    BANNER_H = 600                    # Height of the Magnus video banner
-    BANNER_Y = 850                    # Vertical position of the banner (Pixels from the top)
+    BANNER_SCALE_W = 480              
+    BANNER_H = 400                    
+    BANNER_Y = 560                    
 
     # === 5. AUDIO SETTINGS ===
     MUSIC_VOLUME = 0.5                # Background music volume (0.0 = silent, 1.0 = loud)
@@ -268,17 +268,17 @@ def start_screen_recording(stream_to_youtube=False, youtube_stream_url="", youtu
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
         '-pix_fmt', 'yuv420p',
-        '-r', '20',
-        '-g', '40',
-        '-b:v', '800k',
-        '-minrate', '800k',
-        '-maxrate', '800k',
-        '-bufsize', '1600k',
+        '-r', '15',
+        '-g', '30',
+        '-b:v', '500k',
+        '-minrate', '500k',
+        '-maxrate', '500k',
+        '-bufsize', '400k',            # Small buffer to stay in RAM
         '-x264-params', 'nal-hrd=cbr:force-cfr=1',
         '-acodec', 'aac',
         '-ar', '44100',
         '-b:a', '32k',
-        '-threads', '1',
+        '-threads', '1',               # Single thread for encoding
         '-shortest'
     ]
 
