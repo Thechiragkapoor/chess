@@ -50,21 +50,38 @@ def ensure_browser_alive(driver):
 
 def log_memory_usage():
     try:
-        mem = psutil.virtual_memory()
+        # 1. Try to get container-accurate memory from cgroups (Docker/Render)
+        container_mem = None
+        # Cgroup v2 (modern)
+        if os.path.exists("/sys/fs/cgroup/memory.current"):
+            with open("/sys/fs/cgroup/memory.current", "r") as f:
+                container_mem = int(f.read().strip()) / (1024 * 1024)
+        # Cgroup v1 (older)
+        elif os.path.exists("/sys/fs/cgroup/memory/memory.usage_in_bytes"):
+            with open("/sys/fs/cgroup/memory/memory.usage_in_bytes", "r") as f:
+                container_mem = int(f.read().strip()) / (1024 * 1024)
+
+        # 2. Fallback to process summing (Local/Non-container)
         process = psutil.Process(os.getpid())
         py_mem = process.memory_info().rss / (1024 * 1024)
         
-        # Count all child processes (Chrome, FFmpeg, etc)
-        total_rss = py_mem
-        for child in process.children(recursive=True):
-            try:
-                total_rss += child.memory_info().rss / (1024 * 1024)
-            except:
-                pass
+        if container_mem is not None:
+            total_display = container_mem
+            source = "Container"
+        else:
+            # Note: This often overcounts Chrome due to shared memory
+            total_rss = py_mem
+            for child in process.children(recursive=True):
+                try:
+                    total_rss += child.memory_info().rss / (1024 * 1024)
+                except:
+                    pass
+            total_display = total_rss
+            source = "Summed RSS"
+
+        sys_mem = psutil.virtual_memory().percent
+        logging.info(f"[ANALYTICS] System: {sys_mem}% | Total RAM ({source}): {total_display:.1f}MB / 512MB limit | Python: {py_mem:.1f}MB")
         
-        logging.info(f"[ANALYTICS] System: {mem.percent}% used | "
-                     f"Total App RSS: {total_rss:.1f}MB / 512MB limit | "
-                     f"Python: {py_mem:.1f}MB")
     except Exception as e:
         logging.error(f"[ANALYTICS] Error logging memory: {e}")
 
